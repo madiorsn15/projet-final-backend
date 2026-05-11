@@ -1,39 +1,145 @@
-# 🛒 SunuMarché — Marketplace Sénégalaise
+# 🌍 SunuMarché - Plateforme de Marché Sénégalaise
 
-Plateforme web de type marketplace permettant à des vendeurs de publier leurs produits et à des clients de les contacter directement via **WhatsApp**. Paiement à la livraison.
+Une marketplace moderne et intuitive conçue pour connecter les vendeurs et acheteurs au Sénégal. Facilitez vos transactions en ligne avec une interface élégante et des fonctionnalités puissantes.
+
+## 📋 Table des Matières
+
+- [🌟 Fonctionnalités Principales](#-fonctionnalités-principales)
+- [🏗️ Architecture du Projet](#️-architecture-du-projet)
+- [🛠️ Technologies Utilisées](#️-technologies-utilisées)
+- [📦 Structure du Projet](#-structure-du-projet)
+- [🚀 Installation](#-installation)
+- [⚙️ Configuration](#️-configuration)
+- [🎯 Scripts Disponibles](#-scripts-disponibles)
+- [🌐 Déploiement](#-déploiement)
+- [🔧 API Documentation](#-api-documentation)
+- [🤝 Contribuer](#-contribuer)
+- [📄 Licence](#-licence)
 
 ---
 
-## 🧱 Stack technique
+## 🌟 Fonctionnalités Principales
 
-| Couche | Technologie |
-|--------|-------------|
-| Frontend | React.js 18 |
-| Backend | Node.js + Express.js |
-| Base de données | MongoDB + Mongoose |
-| Auth | JWT + bcryptjs |
-| Upload | Multer |
-| Architecture | MVC |
+### 👤 Pour les Utilisateurs
+- **Authentification Sécurisée** : Inscription, connexion avec JWT
+- **Navigation Intuitive** : Interface moderne et responsive
+- **Recherche Avancée** : Filtrage par catégorie, prix, et recherche textuelle
+- **Favoris** : Sauvegardez vos produits préférés
+- **Commandes Simplifiées** : Processus de commande fluide
+- **Contact WhatsApp** : Communication directe avec les vendeurs
+
+### 🛍️ Pour les Vendeurs
+- **Gestion des Produits** : Ajout, modification, suppression
+- **Upload d'Images** : Gestion des visuels produits
+- **Dashboard Personnel** : Statistiques de vente, vues, clics
+- **Gestion des Commandes** : Suivi des commandes reçues
+- **Profil Public** : Page vendeur personnalisée
+
+### 🔧 Fonctionnalités Techniques
+- **Design Moderne** : Interface avec thème SunuMarché
+- **Responsive Design** : Compatible mobile, tablette, desktop
+- **Notifications Toast** : Feedback utilisateur en temps réel
+- **Gestion d'Erreurs** : Messages d'erreur conviviaux
+- **Sécurité** : Protection contre les attaques web communes
 
 ---
 
-## 📁 Structure du projet
+## 🏗️ Architecture du Projet
+
+### Frontend (React)
+```
+frontend/
+├── src/
+│   ├── components/          # Composants réutilisables
+│   │   ├── Navbar.js      # Barre de navigation
+│   │   ├── Footer.js      # Pied de page
+│   │   └── ProductCard.js # Carte produit
+│   ├── context/           # Contexte React
+│   │   ├── AuthContext.js # Gestion authentification
+│   │   └── FavoritesContext.js # Gestion favoris
+│   ├── pages/             # Pages principales
+│   │   ├── HomePage.js    # Page d'accueil
+│   │   ├── ProductsPage.js # Liste des produits
+│   │   ├── ProductDetailPage.js # Détail produit
+│   │   ├── LoginPage.js   # Connexion
+│   │   ├── RegisterPage.js # Inscription
+│   │   ├── DashboardPage.js # Tableau de bord
+│   │   └── ...
+│   ├── utils/             # Utilitaires
+│   │   └── api.js        # Configuration Axios
+│   └── App.js            # Composant principal
+├── public/               # Fichiers statiques
+│   ├── index.html        # Template HTML
+│   └── favicon.svg      # Favicon SunuMarché
+└── package.json         # Dépendances frontend
+```
+
+### Backend (Node.js/Express)
+```
+backend/
+├── controllers/          # Logique métier
+│   ├── authController.js     # Authentification
+│   ├── productController.js   # Gestion produits
+│   ├── userController.js     # Gestion utilisateurs
+│   └── orderController.js    # Gestion commandes
+├── middleware/           # Middleware Express
+│   ├── auth.js        # Vérification JWT
+│   └── upload.js      # Gestion uploads
+├── models/              # Schémas Mongoose
+│   ├── User.js        # Modèle utilisateur
+│   ├── Product.js     # Modèle produit
+│   └── Order.js       # Modèle commande
+├── routes/              # Routes API
+│   ├── auth.js        # Routes authentification
+│   ├── products.js    # Routes produits
+│   ├── users.js       # Routes utilisateurs
+│   └── orders.js      # Routes commandes
+├── uploads/            # Fichiers uploadés
+├── tests/              # Tests backend
+├── server.js           # Serveur principal
+├── seed.js            # Données de test
+└── package.json       # Dépendances backend
+```
+
+---
+
+## 🛠️ Technologies Utilisées
+
+### Frontend
+- **React 19.2.5** : Framework JavaScript moderne
+- **React Router 7.14.1** : Routage client-side
+- **Axios 1.15.0** : Client HTTP pour les appels API
+- **React Hot Toast 2.6.0** : Notifications élégantes
+- **CSS3** : Styles modernes avec animations
+- **Google Fonts** : Typographie professionnelle
+
+### Backend
+- **Node.js** : Runtime JavaScript serveur
+- **Express 4.18.2** : Framework web minimaliste
+- **MongoDB 7.3.1** : Base de données NoSQL
+- **Mongoose** : ODM MongoDB pour Node.js
+- **JWT 9.0.0** : Tokens d'authentification
+- **bcryptjs 2.4.3** : Hashage des mots de passe
+- **Multer 2.0.0** : Gestion des uploads de fichiers
+
+### Sécurité
+- **Helmet 8.1.0** : Sécurisation des headers HTTP
+- **CORS 2.8.6** : Gestion des requêtes cross-origin
+- **Express Rate Limit 8.3.2** : Limitation des requêtes
+- **Express Mongo Sanitize 2.2.0** : Protection contre injections NoSQL
+- **HPP 0.2.3** : Protection contre pollution de paramètres
+
+---
+
+## 📦 Structure du Projet
 
 ```
 marketplace/
-├── backend/
-│   ├── middleware/
-│   │   └── auth.js          # JWT + contrôle rôles
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── Product.js
-│   │   └── Order.js
-│   ├── routes/
-│   │   ├── auth.js
-│   │   ├── products.js
-│   │   ├── orders.js
-│   │   └── users.js
-│   ├── uploads/             # Images produits (auto-créé)
+├── backend/             # API REST Node.js/Express
+├── frontend/            # Application React
+├── .gitignore          # Fichiers ignorés par Git
+├── package.json        # Scripts du projet racine
+└── README.md          # Documentation du projet
 │   ├── server.js
 │   ├── package.json
 │   └── .env.example

@@ -25,6 +25,7 @@ app.use(helmet({
   },
 }));
 
+// Global : 1000 req / 15 min (augmenté pour le développement)
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
@@ -33,9 +34,10 @@ app.use(rateLimit({
   legacyHeaders: false,
 }));
 
+// Auth : désactivé ou très élevé pour le développement
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 1000, // Augmenté pour éviter les blocages en dev
   message: { message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
   skipSuccessfulRequests: true,
 });
@@ -78,6 +80,7 @@ app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/products', uploadLimiter, require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/stats', require('./routes/stats'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });

@@ -61,6 +61,17 @@ const userSchema = new mongoose.Schema({
     default: null,
     select: false,
   },
+  // Champs pour réinitialisation de mot de passe
+  resetPasswordToken: {
+    type: String,
+    default: null,
+    select: false,
+  },
+  resetPasswordExpire: {
+    type: Date,
+    default: null,
+    select: false,
+  },
 }, {
   timestamps: true,
   // Ne pas exposer __v dans les réponses

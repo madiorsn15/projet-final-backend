@@ -1,6 +1,12 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { blacklistToken, generateToken } = require('../middleware/auth');
 const User = require('../models/User');
+
+// --- Fonction utilitaire pour générer un token de réinitialisation
+const generateResetToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
 
 const register = async (req, res) => {
   try {
@@ -93,10 +99,69 @@ const changePassword = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Aucun compte avec cet email.' });
+    }
+
+    const resetToken = generateResetToken();
+    const resetTokenExpire = Date.now() + 3600000; // 1 heure
+
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpire = resetTokenExpire;
+    await user.save();
+
+    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`;
+    console.log(`[Auth] Password reset requested for ${email} — Reset URL: ${resetUrl}`);
+
+    return res.json({
+      message: 'Un lien de réinitialisation a été généré (pour le développement, il est affiché dans les logs du backend).',
+      resetToken, // Pour le développement, on renvoie le token directement
+      resetUrl,
+    });
+  } catch (error) {
+    console.error('[Auth] Forgot-password:', error.message);
+    return res.status(500).json({ message: 'Erreur serveur.' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpire: { $gt: Date.now() },
+    }).select('+resetPasswordToken +resetPasswordExpire');
+
+    if (!user) {
+      return res.status(400).json({ message: 'Token invalide ou expiré.' });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpire = null;
+    await user.save();
+
+    console.log(`[Auth] Password reset successfully — User: ${user._id}`);
+    return res.json({ message: 'Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.' });
+  } catch (error) {
+    console.error('[Auth] Reset-password:', error.message);
+    return res.status(500).json({ message: 'Erreur serveur.' });
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
   me,
   changePassword,
+  forgotPassword,
+  resetPassword,
 };

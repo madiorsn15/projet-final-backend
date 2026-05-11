@@ -17,5 +17,14 @@ router.patch('/change-password', protect, [
     .matches(/\d/).withMessage('Doit contenir au moins un chiffre.'),
   validate,
 ], authController.changePassword);
+router.post('/forgot-password', [
+  body('email').isEmail().withMessage('Email invalide.'),
+  validate,
+], authController.forgotPassword);
+router.post('/reset-password/:token', [
+  body('password')
+    .isLength({ min: 6, max: 128 }).withMessage('6 à 128 caractères.'),
+  validate,
+], authController.resetPassword);
 
 module.exports = router;
