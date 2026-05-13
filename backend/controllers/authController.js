@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { blacklistToken, generateToken } = require('../middleware/auth');
 const User = require('../models/User');
+const { sendWelcomeEmail, sendResetPasswordEmail } = require('../utils/email');
 
 // --- Fonction utilitaire pour générer un token de réinitialisation
 const generateResetToken = () => {
@@ -21,6 +22,10 @@ const register = async (req, res) => {
 
     const user = await User.create({ name, email, password, role: safeRole, whatsapp });
     console.log(`[Auth] Inscription — User: ${user._id} | Role: ${safeRole} | IP: ${req.ip}`);
+
+    sendWelcomeEmail(user).catch(err => {
+      console.warn('[Email] Échec envoi bienvenue:', err.message);
+    });
 
     return res.status(201).json({
       message: 'Inscription réussie !',
@@ -115,12 +120,16 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpire = resetTokenExpire;
     await user.save();
 
-    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
     console.log(`[Auth] Password reset requested for ${email} — Reset URL: ${resetUrl}`);
 
+    sendResetPasswordEmail(email, resetUrl).catch(err => {
+      console.warn('[Email] Échec envoi reset password:', err.message);
+    });
+
     return res.json({
-      message: 'Un lien de réinitialisation a été généré (pour le développement, il est affiché dans les logs du backend).',
-      resetToken, // Pour le développement, on renvoie le token directement
+      message: 'Un email de réinitialisation a été envoyé. Vérifiez votre boîte mail.',
+      resetToken, // Pour le développement
       resetUrl,
     });
   } catch (error) {

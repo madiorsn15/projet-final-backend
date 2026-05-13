@@ -14,6 +14,14 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Le téléphone est requis']
   },
+  buyerEmail: {
+    type: String,
+    default: null,
+  },
+  sellerEmail: {
+    type: String,
+    default: null,
+  },
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',

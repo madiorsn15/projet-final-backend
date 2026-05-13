@@ -1,5 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const User = require('../models/User');
+const { sendOrderConfirmationEmail, sendOrderNotificationToSeller } = require('../utils/email');
 
 const createOrder = async (req, res) => {
   try {
@@ -14,10 +16,16 @@ const createOrder = async (req, res) => {
 
     const qty = Math.min(99, Math.max(1, parseInt(quantity, 10)));
 
+    const seller = await User.findById(product.seller);
+    const buyerEmail = req.user.email;
+    const sellerEmail = seller?.email || null;
+
     const order = await Order.create({
       client: req.user._id,
       clientName,
       clientPhone: clientPhone || phone,
+      buyerEmail,
+      sellerEmail,
       product: productId,
       address,
       phone,
@@ -26,13 +34,15 @@ const createOrder = async (req, res) => {
       notes: notes || '',
     });
 
-    // Incrémenter le compteur de commandes du produit
     await Product.findByIdAndUpdate(productId, { 
       $inc: { ordersCount: 1 } 
     });
 
     await order.populate('product', 'name price image seller');
     console.log(`[Orders] Créée — ID: ${order._id} | Produit: ${productId}`);
+
+    sendOrderConfirmationEmail(order).catch(err => console.warn('[Email] Échec envoi confirmation commande:', err.message));
+    sendOrderNotificationToSeller(order).catch(err => console.warn('[Email] Échec envoi notif vendeur:', err.message));
 
     return res.status(201).json({ message: 'Commande passée avec succès !', order });
   } catch (error) {
