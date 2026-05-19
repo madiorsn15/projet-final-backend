@@ -3,14 +3,7 @@
   "version": "1.0.0",
   "description": "Plateforme web de type marketplace permettant à des vendeurs de publier leurs produits et à des clients de les contacter directement via WhatsApp. Paiement à la livraison.",
   "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "^5.0.1"
-  },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test"
+    "start": "cd backend && node server.js"
   }
 }
