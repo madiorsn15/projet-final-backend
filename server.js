@@ -14,6 +14,34 @@ dotenv.config();
 const app = express();
 let serverInstance = null;
 
+// ✅ 1. Origines autorisées — défini en premier
+const allowedOrigins = [
+  'https://projet-final-front-blush.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
+// ✅ 2. CORS — AVANT helmet et tout le reste
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Autorise les requêtes sans origin (ex: Postman, curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Origine bloquée : ${origin}`);
+      callback(new Error(`Origine non autorisée par CORS : ${origin}`));
+    }
+  },
+  credentials: true, // indispensable pour les httpOnly cookies JWT
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200, // fix pour certains navigateurs anciens
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // ✅ Preflight OPTIONS sur toutes les routes
+
+// ✅ 3. Helmet APRÈS cors (évite les conflits de headers)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: {
@@ -25,15 +53,6 @@ app.use(helmet({
     },
   },
 }));
-
-// 2. Configuration CORS (DEBUG - ULTRA PERMISSIVE)
-app.use(cors({
-  origin: true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['*'],
-}));
-app.options('*', cors({ origin: true, credentials: true }));
 
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -82,11 +101,11 @@ app.use('/api/stats',                   require('./routes/stats'));
 app.use('/api/reviews',                 require('./routes/reviews'));
 
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(), 
-    cors: 'ULTRA PERMISSIVE (DEBUG)',
-    env: process.env.NODE_ENV
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    allowedOrigins,
+    env: process.env.NODE_ENV,
   });
 });
 
@@ -123,7 +142,7 @@ const startServer = async () => {
   serverInstance = app.listen(port, () => {
     console.log(`Serveur SunuMarché → http://localhost:${port}`);
     console.log(`Mode : ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Origines autorisées : ${allowedOrigins.join(', ')}`);
+    console.log(`Origines autorisées : ${allowedOrigins.join(', ')}`); // ✅ variable définie
   });
   return serverInstance;
 };
