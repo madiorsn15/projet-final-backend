@@ -20,18 +20,39 @@ const validateReview = [
   validate,
 ];
 
-router.post('/', protect, validateReview, reviewsController.createReview);
-router.get('/product/:productId', [
-  param('productId').isMongoId().withMessage('Identifiant produit invalide.'),
+const validateMongoParam = (field) => [
+  param(field).isMongoId().withMessage(`Identifiant ${field} invalide.`),
   validate,
-], reviewsController.getProductReviews);
-router.get('/seller/:sellerId', [
-  param('sellerId').isMongoId().withMessage('Identifiant vendeur invalide.'),
-  validate,
-], reviewsController.getSellerReviews);
-router.delete('/:id', protect, requireRole('admin'), [
-  param('id').isMongoId().withMessage('Identifiant avis invalide.'),
-  validate,
-], reviewsController.deleteReview);
+];
+
+// ✅ NOUVEAU : vérifier si l'utilisateur connecté peut noter ce produit
+router.get('/can-review/:productId',
+  protect,
+  validateMongoParam('productId'),
+  reviewsController.checkCanReview
+);
+
+router.post('/',
+  protect,
+  validateReview,
+  reviewsController.createReview
+);
+
+router.get('/product/:productId',
+  validateMongoParam('productId'),
+  reviewsController.getProductReviews
+);
+
+router.get('/seller/:sellerId',
+  validateMongoParam('sellerId'),
+  reviewsController.getSellerReviews
+);
+
+// ✅ CORRIGÉ : l'auteur OU l'admin peut supprimer (la vérif est dans le controller)
+router.delete('/:id',
+  protect,
+  validateMongoParam('id'),
+  reviewsController.deleteReview
+);
 
 module.exports = router;

@@ -1,46 +1,20 @@
+const { Resend } = require('resend');
 const nodemailer = require('nodemailer');
 
-// ─── CONFIGURATION DU TRANSPORTEUR ────────────────────
-const createTransporter = () => {
-  const provider = process.env.EMAIL_PROVIDER || 'ethereal';
+let etherealAccount = null;
 
-  if (provider === 'resend') {
-    return nodemailer.createTransport({
-      host: 'smtp.resend.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'resend',
-        pass: process.env.RESEND_API_KEY || process.env.EMAIL_PASS,
-      },
-    });
+const createEtherealAccount = async () => {
+  if (etherealAccount) return etherealAccount;
+  try {
+    etherealAccount = await nodemailer.createTestAccount();
+    console.log('[Email] Compte Ethereal créé:', etherealAccount.user);
+    return etherealAccount;
+  } catch (err) {
+    console.error('[Email] Échec création compte Ethereal:', err.message);
+    return null;
   }
-
-  if (provider === 'gmail') {
-    return nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-  }
-
-  // Développement : utilise Ethereal.email pour tester (ne nécessite pas de compte)
-  return nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER || 'test@ethereal.email',
-      pass: process.env.EMAIL_PASS || 'testpassword',
-    },
-  });
 };
 
-// ─── TEMPLATES HTML ────────────────────────────────
 const templates = {
   welcome: (user) => `
     <!DOCTYPE html>
@@ -131,7 +105,7 @@ const templates = {
               <li>Communiquer via WhatsApp</li>
             </ul>
           </p>
-          <a href="${process.env.CLIENT_URL}" class="email-button">
+          <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}" class="email-button">
             Accéder à SunuMarché
           </a>
         </div>
@@ -444,22 +418,73 @@ const templates = {
   `,
 };
 
-// ─── FONCTION D'ENVOI D'EMAIL ────────────────────
 const sendEmail = async ({ to, subject, html }) => {
   try {
-    const transporter = createTransporter();
+    const provider = process.env.EMAIL_PROVIDER || 'ethereal';
     
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || 'SunuMarché <noreply@sunumarket.sn>',
+    if (provider === 'resend' && process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const from = process.env.EMAIL_FROM || 'SunuMarché <onboarding@resend.dev>';
+      
+      const { data, error } = await resend.emails.send({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+      });
+
+      if (error) {
+        console.error('[Email] Resend error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log(`[Email] Envoyé via Resend à ${to} | Sujet: ${subject} | ID: ${data?.id}`);
+      return { success: true, messageId: data?.id };
+    }
+
+    if (provider === 'gmail' && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to,
+        subject,
+        html,
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`[Email] Envoyé via Gmail à ${to} | Sujet: ${subject}`);
+      return { success: true, messageId: info.messageId };
+    }
+
+    const account = await createEtherealAccount();
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: account.user,
+        pass: account.pass,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: 'SunuMarché <noreply@sunumarket.sn>',
       to,
       subject,
       html,
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Email] Envoyé à ${to} | Sujet: ${subject}`);
+      console.log(`[Email] Envoyé via Ethereal à ${to} | Sujet: ${subject}`);
       console.log(`[Email] Ethereal preview URL: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
@@ -470,7 +495,6 @@ const sendEmail = async ({ to, subject, html }) => {
   }
 };
 
-// ─── EXPORTS DES FONCTIONS SPECIFIQUES ────────────
 const sendWelcomeEmail = async (user) => {
   return sendEmail({
     to: user.email,

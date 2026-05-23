@@ -26,16 +26,9 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     enum: [
-      'Électronique',
-      'Vêtements',
-      'Maison & Jardin',
-      'Sports & Loisirs',
-      'Beauté & Santé',
-      'Alimentation',
-      'Livres',
-      'Jeux & Jouets',
-      'Automobiles',
-      'Autres',
+      'Électronique', 'Vêtements', 'Maison & Jardin',
+      'Sports & Loisirs', 'Beauté & Santé', 'Alimentation',
+      'Livres', 'Jeux & Jouets', 'Automobiles', 'Autres',
     ],
     default: 'Autres'
   },
@@ -48,31 +41,26 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  // Statistiques du produit
-  viewsCount: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  clicksCount: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  ordersCount: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  // Champ legacy pour compatibilité
-  views: {
-    type: Number,
-    default: 0,
-    min: 0
-  }
+  viewsCount:  { type: Number, default: 0, min: 0 },
+  clicksCount: { type: Number, default: 0, min: 0 },
+  ordersCount: { type: Number, default: 0, min: 0 },
+  views:       { type: Number, default: 0, min: 0 }, // legacy
 }, { timestamps: true });
 
-// Index for search
+// ── INDEXES ──────────────────────────────────────────────────────
+// Recherche texte full-text
 productSchema.index({ name: 'text', description: 'text' });
+
+// Catalogue : filtre category + dispo + tri date (requête la plus fréquente)
+productSchema.index({ category: 1, isAvailable: 1, createdAt: -1 });
+
+// Page "mes produits" vendeur
+productSchema.index({ seller: 1, createdAt: -1 });
+
+// Tri popularité homepage
+productSchema.index({ viewsCount: -1, clicksCount: -1 });
+
+// Produits disponibles triés par date (listing général)
+productSchema.index({ isAvailable: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Product', productSchema);

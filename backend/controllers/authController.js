@@ -120,7 +120,7 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpire = resetTokenExpire;
     await user.save();
 
-    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+    const resetUrl = `${(process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].trim()}/reset-password/${resetToken}`;
     console.log(`[Auth] Password reset requested for ${email} — Reset URL: ${resetUrl}`);
 
     sendResetPasswordEmail(email, resetUrl).catch(err => {

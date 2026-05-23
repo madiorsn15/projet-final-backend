@@ -10,7 +10,7 @@ const reviewSchema = new mongoose.Schema({
   buyerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'L\'acheteur est requis.'],
+    required: [true, "L'acheteur est requis."],
     index: true,
   },
   sellerId: {
@@ -37,14 +37,17 @@ const reviewSchema = new mongoose.Schema({
   versionKey: false,
 });
 
-reviewSchema.index({ productId: 1, buyerId: 1 }, { unique: true });
+// ── INDEXES ──────────────────────────────────────────────────────
+reviewSchema.index({ productId: 1, buyerId: 1 }, { unique: true }); // 1 review par acheteur/produit
+reviewSchema.index({ productId: 1, createdAt: -1 });                // pagination reviews produit
+reviewSchema.index({ sellerId:  1, createdAt: -1 });                // reviews d'un vendeur
 
+// ── STATICS ──────────────────────────────────────────────────────
 reviewSchema.statics.getAverageRating = async function (productId) {
   const result = await this.aggregate([
     { $match: { productId: new mongoose.Types.ObjectId(productId) } },
     { $group: { _id: null, averageRating: { $avg: '$rating' }, count: { $sum: 1 } } },
   ]);
-
   return result[0]
     ? { averageRating: Math.round(result[0].averageRating * 10) / 10, count: result[0].count }
     : { averageRating: 0, count: 0 };
@@ -55,7 +58,6 @@ reviewSchema.statics.getSellerAverageRating = async function (sellerId) {
     { $match: { sellerId: new mongoose.Types.ObjectId(sellerId) } },
     { $group: { _id: null, averageRating: { $avg: '$rating' }, count: { $sum: 1 } } },
   ]);
-
   return result[0]
     ? { averageRating: Math.round(result[0].averageRating * 10) / 10, count: result[0].count }
     : { averageRating: 0, count: 0 };
