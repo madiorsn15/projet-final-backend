@@ -7,12 +7,41 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const dotenv = require('dotenv');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 
 dotenv.config();
 
 const app = express();
 let serverInstance = null;
 
+// ✅ 1. Origines autorisées — défini en premier
+const allowedOrigins = [
+  'https://projet-final-front-blush.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
+// ✅ 2. CORS — AVANT helmet et tout le reste
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Autorise les requêtes sans origin (ex: Postman, curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Origine bloquée : ${origin}`);
+      callback(new Error(`Origine non autorisée par CORS : ${origin}`));
+    }
+  },
+  credentials: true, // indispensable pour les httpOnly cookies JWT
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200, // fix pour certains navigateurs anciens
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // ✅ Preflight OPTIONS sur toutes les routes
+
+// ✅ 3. Helmet APRÈS cors (évite les conflits de headers)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: {
@@ -25,7 +54,6 @@ app.use(helmet({
   },
 }));
 
-// Global : 1000 req / 15 min (augmenté pour le développement)
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
@@ -34,10 +62,9 @@ app.use(rateLimit({
   legacyHeaders: false,
 }));
 
-// Auth : désactivé ou très élevé pour le développement
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000, // Augmenté pour éviter les blocages en dev
+  max: 1000,
   message: { message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
   skipSuccessfulRequests: true,
 });
@@ -45,73 +72,55 @@ const authLimiter = rateLimit({
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 100,
-  message: { message: 'Limite d\'uploads atteinte. Réessayez dans 1 heure.' },
+  message: { message: "Limite d'uploads atteinte. Réessayez dans 1 heure." },
 });
-
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000,http://localhost:3001').split(',');
-
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
 
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(cookieParser());
 
 app.use(mongoSanitize({
   replaceWith: '_',
   onSanitize: ({ req, key }) => {
-    console.warn(`[SÉCURITÉ] Injection NoSQL détectée — IP: ${req.ip} | Champ: ${key}`);
+    console.warn(`[SÉCURITÉ] Injection NoSQL — IP: ${req.ip} | Champ: ${key}`);
   },
 }));
 
-app.use(hpp({
-  whitelist: ['category', 'page', 'limit', 'search'],
-}));
+app.use(hpp({ whitelist: ['category', 'page', 'limit', 'search'] }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   index: false,
   maxAge: '7d',
 }));
 
-app.use('/api/auth', authLimiter, require('./routes/auth'));
+app.use('/api/auth',     authLimiter,   require('./routes/auth'));
 app.use('/api/products', uploadLimiter, require('./routes/products'));
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/stats', require('./routes/stats'));
+app.use('/api/orders',                  require('./routes/orders'));
+app.use('/api/users',                   require('./routes/users'));
+app.use('/api/stats',                   require('./routes/stats'));
+app.use('/api/reviews',                 require('./routes/reviews'));
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    allowedOrigins,
+    env: process.env.NODE_ENV,
+  });
 });
 
 app.use((err, req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}] ERROR | ${req.method} ${req.path} | IP: ${req.ip} | ${err.message}`);
-
+  console.error(`[ERROR] ${req.method} ${req.path} | ${err.message}`);
   if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map((error) => error.message);
-    return res.status(400).json({ message: 'Données invalides.', errors });
+    return res.status(400).json({ message: 'Données invalides.', errors: Object.values(err.errors).map(e => e.message) });
   }
-
   if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    return res.status(400).json({ message: `Ce ${field} est déjà utilisé.` });
+    return res.status(400).json({ message: `Ce ${Object.keys(err.keyValue)[0]} est déjà utilisé.` });
   }
-
   if (err.name === 'CastError') {
     return res.status(400).json({ message: 'Identifiant invalide.' });
   }
-
-  if (err.message?.includes('CORS')) {
-    return res.status(403).json({ message: 'Origine non autorisée.' });
-  }
-
-  const message = process.env.NODE_ENV === 'production'
-    ? 'Une erreur interne est survenue.'
-    : err.message;
-
+  const message = process.env.NODE_ENV === 'production' ? 'Une erreur interne est survenue.' : err.message;
   return res.status(err.status || 500).json({ message });
 });
 
@@ -129,21 +138,17 @@ const connectDatabase = async () => {
 
 const startServer = async () => {
   await connectDatabase();
-
   const port = process.env.PORT || 5000;
   serverInstance = app.listen(port, () => {
     console.log(`Serveur SunuMarché → http://localhost:${port}`);
     console.log(`Mode : ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Origines autorisées : ${allowedOrigins.join(', ')}`); // ✅ variable définie
   });
-
   return serverInstance;
 };
 
 const shutdown = (signal) => {
-  if (!serverInstance) {
-    process.exit(0);
-  }
-
+  if (!serverInstance) { process.exit(0); }
   console.log(`\nSignal ${signal} reçu — arrêt propre...`);
   serverInstance.close(() => {
     mongoose.connection.close(false, () => {
@@ -151,22 +156,13 @@ const shutdown = (signal) => {
       process.exit(0);
     });
   });
-
   setTimeout(() => process.exit(1), 10000).unref?.();
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
-
-process.on('uncaughtException', (err) => {
-  console.error('uncaughtException:', err.message);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('unhandledRejection:', reason);
-  process.exit(1);
-});
+process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('uncaughtException',  (err) => { console.error('uncaughtException:', err.message); process.exit(1); });
+process.on('unhandledRejection', (reason) => { console.error('unhandledRejection:', reason); process.exit(1); });
 
 if (require.main === module) {
   startServer().catch((error) => {
@@ -175,8 +171,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = {
-  app,
-  startServer,
-  connectDatabase,
-};
+module.exports = { app, startServer, connectDatabase };
